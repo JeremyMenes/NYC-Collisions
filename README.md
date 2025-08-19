@@ -1,83 +1,47 @@
-# **NYC Motor Vehicle Collisions & Weather Data Integration (2013–2023)**  
+# Introduction
 
-**[📊 View the final interactive Tableau dashboard →](https://public.tableau.com/app/profile/jeremymenes/viz/NYCCollisions_17336129497660/Dashboard2?publish=yes)**  
+Welcome! This is a personal data project analyzing auto accidents in New York City from 2013-2023. The final results of this project have been published to my [Tableau Public profile.](https://public.tableau.com/app/profile/jeremymenes/viz/NYCCollisions_17336129497660/Dashboard2?publish=yes)
+
+The primary purpose of this repository is to showcase my skills with data handling, cleaning, and analysis using SQL and Python. Secondly this will also serve as documentation of my changes to the raw dataset, and the methodologies I used to clean and manipulate the data.
+  
+## Project Overview
+
+**Data Source:**  
+- The primary dataset for this project was obtained from the [City of New York OpenData website](https://data.cityofnewyork.us/Public-Safety/Motor-Vehicle-Collisions-Crashes/h9gi-nx95/about_data)  
+- Weather data for NYC was obtained from the [National Oceanic and Atmospheric Administration (NOAA)](https://www.ncdc.noaa.gov/cdo-web/datasets)
+
+**Data Size/Scope:**  
+- The NYC Motor Collisions dataset contains over 2 million rows, each representing individual auto accidents across the five boroughs of NYC over a ten-year period.  
+- The NOAA dataset contains over 300,000 rows of daily weather readings, from 220 individual weather stations in the greater NYC area.
+
+**SQL for Data Cleaning:**  
+- I wrote a series of custom SQL queries (available in this repo) to clean, standardize, and correct data inconsistencies directly within the database environment. 
+
+**Python for Integration and Analysis:**  
+- To explore the impact of weather conditions on auto accidents, I used Python to combine the two datasets. This involved a complex Python script that matched each auto accident to the closest NOAA weather station and added the recorded weather data to the original Collisions dataset.
+
+**Database Management:**  
+- I began this project using a local Microsoft SQL Server instanc. As the project grew in complexity, I migrated to a Docker MySQL server. The MySQL server is now accessed and queried through PyCharm, with integrated Python scripts for analysis.
 
 
+## Project Highlights
 
-## **Executive Summary**
+### Expanding the Project with Weather Data from the NOAA
 
-This project integrates over **2 million NYC motor vehicle collision records** with **300,000+ NOAA weather observations** (2013–2023) to quantify environmental influences on traffic incidents. Through a combination of **SQL-based data cleaning**, **Python geospatial matching (Haversine distance)**, and **robust imputation strategies**, I built a complete, analysis-ready dataset with **100% weather coverage** that powers an interactive Tableau dashboard revealing temporal and spatial collision trends.
+I started this project by analyzing trends solely within the NYC Motor Collisions dataset. After I noticed certain trends in auto accidents during the holiday months, I began to explore how weather conditions may have affected these seasonal trends. 
 
----
+Fortunatley, public NYC weather data was handily available from the NOAA. The next step would be planning my methodology on how to combine the two datasets. The NOAA data contained various weather readings from many different weather stations sprawled out across NYC’s limits. The issue was more complicated than simply “What were the weather conditions in NYC on the date of the accident?” From its furthest points, NYC is 35 miles long and encompasses over 300 square miles. I would need to take the location of each accident into account, and compare it to localized weather readings from nearby weather stations.
 
-## **Project Objective**
+The planned method to combine the two datasets would follow this general logic:
+	1 – From the NYC Motor Collisions dataset, obtain the Collision ID, Latitude, Longitude, and Crash Date of each row. (representing a single auto accident event, what date it occured, and the geospacial coordinates of the accident)
+	2 – For each accident, return a list of all weather stations from the NOAA dataset that have weather readings for the date of the accident. (along with the geopspacial coordinates of the weather stations, which was thankfully also included in the NOAA dataset)
+	3 – Based on the coordinates of the auto accident, return the closest weather station.
+	4 – Append the available weather data from the closest weather station to the row in the NYC Collisions dataset, and repeat for each row.
 
-This project combines **New York City’s Motor Vehicle Collisions dataset** with **NOAA historical weather records** to investigate environmental factors contributing to traffic accidents over a ten-year period.  
-
-The focus is on:
-- **Advanced data preparation and integration** using SQL and Python.  
-- **Geospatial matching** of collisions to weather stations.  
-- **Data quality assurance** through completeness thresholds and targeted imputation.  
-- **Creation of an analysis-ready dataset** for visualization in Tableau.  
-
----
-
-## **Data Sources & Scope**
-
-**NYC Motor Vehicle Collisions**  
-- **Source:** [NYC OpenData](https://data.cityofnewyork.us/Public-Safety/Motor-Vehicle-Collisions-Crashes/h9gi-nx95/about_data)  
-- ~2 million rows, one per collision, covering all five boroughs (2013–2023).  
-- Includes geospatial coordinates, timestamps, and contributing factors.  
-
-**NOAA Historical Weather Data**  
-- **Source:** [NOAA NCEI](https://www.ncdc.noaa.gov/cdo-web/datasets)  
-- ~300,000 daily weather readings from 220 regional stations.  
-- Metrics: Temperature (min/max/avg), precipitation, snowfall, snow depth, and event flags (fog, thunder, hail, etc.).  
-
----
-
-## **Data Preparation Workflow Overview**
-
-The ETL process involved three major phases:
-
-1. **Data Cleaning & Standardization in SQL**  
-   - Resolved missing values, standardized formats, and corrected inconsistencies directly in the database environment.  
-
-2. **Weather Data Integration in Python**  
-   - Filtered NOAA stations by completeness.  
-   - Performed **nearest-station matching** using great-circle distances for each collision record.  
-
-3. **Imputation of Remaining Missing Data**  
-   - Filled in weather data for collisions without coordinates by averaging readings across all available stations for that date.  
-
----
-
-### **ETL Workflow Diagram**
-
-```mermaid
-flowchart LR
-    A["NYC Collision Dataset<br>(~2M rows)"] --> B["SQL Cleaning & Standardization"]
-    C["NOAA Weather Dataset<br>(~300K rows)"] --> D["Python Completeness Filtering (>=95% coverage)"]
-    B --> E["Python Spatial Matching<br>(Haversine Formula)"]
-    D --> E
-    E --> F["Merge Weather Data into Collision Records"]
-    F --> G["SQL Missing Data Imputation<br>(Date-based Averages)"]
-    G --> H["Analysis-Ready Dataset →<br>Tableau Visualization"]
-```
-
----
-
-## **Project Highlight – NOAA Data Completeness Filtering**
-
-To ensure data integrity, only stations with ≥95% completeness across key variables (`PRCP`, `TMAX`, `TMIN`, `SNOW`) were used.  
-
-**Process:**
-- Group NOAA records by station.  
-- Calculate completeness ratios.  
-- Filter out stations failing to meet the threshold.  
-
+However, I ran into an obstacle with the NOAA database - many of the smaller weather stations had massive holes in their historical data. If I simply added weather data to the NYC dataset from the closest weather station, I would run into situations where data might not be available from the smaller stations. To fix this, I wrote the following Python script to return a list of weather stations whose databases were at least 95% complete. 
+  
 <details>
-<summary>📜 Python Script – Station Completeness Filtering</summary>
+<summary>📜 Python Script – Filter for Weather Stations with Complete Data</summary>
 
 ```python
 import pandas as pd
@@ -107,19 +71,23 @@ print(result_df.sort_values(by='Completeness', ascending=False))
 
 </details>
 
-**Outcome:**  
-The retained stations included NYC’s three major airports and Central Park — all with **100% completeness** — ensuring consistent, reliable data coverage for the analysis.
+This returned the following list of weather stations, which unsurprisingly contained the weather stations from NYC’s 3 major airports, and the Central Park weather station.
 
----
+| NAME | Completeness |
+| --- | --- |
+| JFK INTERNATIONAL AIRPORT, NY US | 1.000000 |
+| NEWARK LIBERTY INTERNATIONAL AIRPORT, NJ US | 1.000000 |
+| LAGUARDIA AIRPORT, NY US | 1.000000 |
+| NY CITY CENTRAL PARK, NY US | 1.000000 |
+| LONG BRANCH OAKHURST, NJ US | 0.986291 |
+| CENTERPORT, NY US | 0.982268 |
+| BOONTON 1 SE, NJ US | 0.977084 |
 
-## **Geospatial Integration – Matching Collisions to Weather Stations**
+I then filtered the NOAA weather data to only include data from these stations. This ensured that when I would later match each auto accident to the closest weather station, that station would always have available weather data.
 
-Once the station list was finalized, each collision with valid coordinates was matched to the nearest weather station reporting on that date.  
+This method would potentially skip over smaller weather stations that might be closer to a specific auto accident. However, because the major weather stations in NYC were within a 10-15 mile radius of all accidents in the NYC Motor Collisions dataset, this was an acceptable margin of error. I ultimately decided to focus on the core goals of the project: analyzing *general* trends. In addition, this method would avoid any potential data entry errors with the smaller weather stations. 
 
-**Challenges Addressed:**
-- Many collisions lacked valid geocoordinates.  
-- Spatial matching had to be both **accurate** and **efficient** for 1.75 million records.  
-- Smaller stations with incomplete data were excluded to avoid null matches.  
+After filtering for completed weather data, the next step was to add weather data from the closest weather station to each accident in the NYC Collision dataset. I started by filtering the NYC Collisions dataset for accidents with non-Null and valid Latitude/Longitude coordinates (meaning coordinates that were actually *within* the city limits) which resulted in about 87.5%, or 1.75 million rows from the original dataset. I wrote the following Python script to accomplish this, which involved the use of the Haversine formula (which calculates the distance between two sets of Latitude and Longitude coordinates)
 
 <details>
 <summary>📜 Python Script – Nearest Weather Station Matching</summary>
@@ -182,32 +150,25 @@ NYCdb.to_csv("output.csv", index=False, sep=',', encoding='utf-8')
 
 </details>
 
-**Outcome:**  
-85% of collisions were successfully matched to a high-quality station with valid weather data.
 
----
+This returned a table with the Collision ID of each auto accident within the city limits, the date of that accident, and the closest weather station to that accident. The rest of the weather data from the NOAA dataset could then be added to the main NYC Collisions dataset via a simple JOIN in SQL.
 
-## **Handling Missing Data in SQL**
+With this completed, approximately 87.5% of all auto accidents within the NYC Collisions dataset now had corresponding weather data. The remaining 12.5% of rows had missing or faulty coordinates, which I set out to fill in with averaged weather data based on the date of the accident.
 
-For the remaining 15% of records (those without valid coordinates), weather data was imputed by averaging readings across all available stations for that date.  
-
-Key steps:
-1. Replaced null values with placeholders to allow joins on columns that would fail when NULL.  
-2. Created a CTE to compute average weather metrics by date for fallback imputation.  
-3. Updated the main collision table using those date-based averages where spatial matching was unavailable.  
+In order to accomplish this, I used SQL to quickly process the dataset. This involved a lengthy script to reformat the needed rows (COALESCE), create a CTE with the average weather readings for the needed dates, and fianlly JOIN the CTE onto the main NYC Collisions dataset for the necessary rows. 
 
 <details>
-<summary>📜 SQL Script – Missing Data Imputation & Weather Data Integration</summary>
+<summary>📜 SQL Script – Mean Inputation for Missing Weather Data</summary>
 
 ```sql
--- Update incomplete weather data in source table in bulk using COALESCE logic for brevity
+-- Update NULL data in WeatherData using COALESCE for later averaging
 UPDATE [Over 90 Accurate Weather Data]
 SET 
     [High_Winds]    = COALESCE([High_Winds], 0),
     [Precipitation] = COALESCE([Precipitation], 0),
     [Snowfall]      = COALESCE([Snowfall], 0),
     [Snow_Depth]    = COALESCE([Snow_Depth], 0),
-    -- If Avg_Temp is missing, compute from Max and Min
+    -- If Avg_Temp is missing, but Max_Temp and Min_Temp are present, compute Avg from Max and Min
     [Avg_Temp]      = CASE 
                          WHEN [Avg_Temp] IS NULL AND [Max_Temp] IS NOT NULL AND [Min_Temp] IS NOT NULL 
                              THEN ([Max_Temp] + [Min_Temp]) / 2 
@@ -223,37 +184,9 @@ SET
     [Glaze/Rime]    = COALESCE([Glaze/Rime], 0),
     [Smoke/Haze]    = COALESCE([Smoke/Haze], 0);
 
--- Add the closest weather station to the collision table (precomputed from Python script)
-UPDATE TargetTable
-SET TargetTable.Closest_Station = Stations.Closest_Station
-FROM [Motor_Vehicle_Collisions_-_Crashes] AS TargetTable
-JOIN [CollisionIDs with Closest Weather Station] AS Stations
-    ON TargetTable.COLLISION_ID = Stations.COLLISION_ID;
-
--- Join weather data into collisions based on matched station and date
-UPDATE TargetTable
-SET 
-    TargetTable.[Precipitation] = Weather.[Precipitation],
-    TargetTable.[Snowfall] = Weather.[Snowfall],
-    TargetTable.[Snow Depth] = Weather.[Snow_Depth],
-    TargetTable.[Fog] = Weather.[Fog],
-    TargetTable.[Heavy Fog] = Weather.[Heavy_Fog],
-    TargetTable.[Thunder] = Weather.[Thunder],
-    TargetTable.[Sleet] = Weather.[Sleet],
-    TargetTable.[Hail] = Weather.[Hail],
-    TargetTable.[Glaze/Rime] = Weather.[Glaze/Rime],
-    TargetTable.[Smoke/Haze] = Weather.[Smoke/Haze],
-    TargetTable.[HighWinds] = Weather.High_Winds,
-    TargetTable.[Avg Temp] = Weather.Avg_Temp,
-    TargetTable.[Max Temp] = Weather.Max_Temp,
-    TargetTable.[Min Temp] = Weather.Min_Temp
-FROM [Motor_Vehicle_Collisions_-_Crashes] AS TargetTable
-JOIN [Over 90 Accurate Weather Data] AS Weather
-    ON TargetTable.Closest_Station = Weather.NAME
-    AND TargetTable.CRASH_DATE = Weather.DATE;
-
--- Fill remaining NULLs for collisions missing location by applying safe defaults
--- (Temperature uses -99 because 0 is a legitimate reading in NYC)
+-- Fill remaining NULLs for Collisions table by applying safe defaults
+-- (Temperature uses -99 because 0 is a legitimate Farenheit reading in NYC)
+-- COALESCE is ommited in this case due to the number of specific conditions needed to properly update the Collisions table
 UPDATE [Motor_Vehicle_Collisions_-_Crashes]
 SET [Avg Temp] = -99
 WHERE (
@@ -590,7 +523,7 @@ WHERE (
         AND LATITUDE = 0
     );
 
--- Create a CTE with average weather data grouped by date (this will be used to fill in collisions with missing locations)
+-- Create a CTE with average weather data grouped by date (this will be used to fill in Collisions table with missing locations)
 WITH AVG_WeatherData_By_Date AS (
     SELECT 
         [DATE] AS [Temp Date],
@@ -627,7 +560,7 @@ WITH AVG_WeatherData_By_Date AS (
     GROUP BY [DATE]
 )
 
--- Add the average weather data to the main collisions table for rows that still have missing station matches
+-- Add the average weather data to Collisions table for rows that still have missing station matches
 UPDATE TargetTable
 SET
     TargetTable.Precipitation = WeatherData.[Temp Precipitation],
@@ -647,7 +580,7 @@ SET
 FROM [Motor_Vehicle_Collisions_-_Crashes] AS TargetTable
 JOIN AVG_WeatherData_By_Date AS WeatherData
     ON TargetTable.CRASH_DATE = WeatherData.[Temp Date]
-WHERE 
+WHERE
     TargetTable.CRASH_DATE < '2024-01-01 00:00:00.0000000'
     AND TargetTable.CRASH_DATE > '2012-12-31 00:00:00.0000000'
     AND (
@@ -661,28 +594,3 @@ WHERE
 ```
 
 </details>
-
-**Outcome:**  
-After imputation, **100% of collisions** in the dataset included complete weather attributes, enabling consistent downstream analysis in Tableau.
-
----
-
-## **Final Dataset Readiness**
-
-The processed dataset:
-- Spans **10 years of NYC collision history**.  
-- Contains **fully populated weather data** for each incident.  
-- Is clean, standardized, and optimized for geospatial and temporal analysis.  
-
----
-
-## **Key Skills Demonstrated**
-- Data cleaning and normalization in SQL (MSSQL & MySQL/Docker environments).  
-- Geospatial data processing and nearest-neighbor matching in Python.  
-- Performance optimization for large datasets.  
-- Data quality assurance via completeness thresholds.  
-- End-to-end ETL workflow from raw acquisition to visualization.  
-
----
-
-**[📊 View the Tableau dashboard →](https://public.tableau.com/app/profile/jeremymenes/viz/NYCCollisions_17336129497660/Dashboard2?publish=yes)**
